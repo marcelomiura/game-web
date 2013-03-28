@@ -1,0 +1,450 @@
+<html>
+<head>
+	<title>Game</title>
+
+	<style type="text/css">
+		/* CSS RESET
+		------------------------------------------------------------------------ */
+		html, body, div, span, applet, object, iframe,
+		h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+		a, abbr, acronym, address, big, cite, code,
+		del, dfn, em, img, ins, kbd, q, s, samp,
+		small, strike, strong, sub, sup, tt, var,
+		b, u, i, center,
+		dl, dt, dd, ol, ul, li,
+		fieldset, form, label, legend,
+		table, caption, tbody, tfoot, thead, tr, th, td,
+		article, aside, canvas, details, embed, 
+		figure, figcaption, footer, header, hgroup, 
+		menu, nav, output, ruby, section, summary,
+		time, mark, audio, video {
+			margin: 0;
+			padding: 0;
+			border: 0;
+			font-size: 100%;
+			font: inherit;
+		}
+
+		/* HTML5 display-role reset for older browsers */
+		article, aside, details, figcaption, figure, 
+		footer, header, hgroup, menu, nav, section {
+			display: block;
+		}
+		body {
+			line-height: 1;
+		}
+		ol, ul {
+			list-style: none;
+		}
+		blockquote, q {
+			quotes: none;
+		}
+		blockquote:before, blockquote:after,
+		q:before, q:after {
+			content: '';
+			content: none;
+		}
+		table {
+			border-collapse: collapse;
+			border-spacing: 0;
+		}
+
+
+
+		#stage{
+			width: 800px;
+			height: 400px;
+			margin: 20px auto; 
+			border: 1px solid black;
+			background-color: #9eeff2;
+			box-shadow: 10px 10px 15px #cecdc8;
+		}
+
+		#stage .content_player{
+			height: inherit;
+			width: 398px;
+			border: 1px solid black;
+			float: left;
+			text-align: center;
+			font-size: 30px;
+		}
+
+		.campo_batalha{
+			width: 300px;
+			height: 300px;
+			float: left;
+			background-color: #BBB;
+			/*border: 1px solid black;*/
+			margin: 30px 50px 0 50px;
+			font-size: 40px;
+		}
+
+		.campo_batalha > div{
+			-webkit-box-shadow: 5px 5px 5px #999;
+		}
+
+		.gradient{
+			background-image: -webkit-linear-gradient(bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 16px, transparent 40px);
+			background-image: -moz-linear-gradient(bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 16px, transparent 40px);
+			background-image: -o-linear-gradient(bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 16px, transparent 40px);
+			background-image: -ms-linear-gradient(bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 16px, transparent 40px);
+			background-image: linear-gradient(bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 16px, transparent 40px);
+		}
+
+		.text{
+			font-family: 'Segoe UI',Tahoma,Helvetica,Sans-Serif;
+			font-size: 20px;
+			font-weight: 400;
+		}
+
+		.over{
+			background-color: white;
+		}
+	</style>
+
+	<script src='src/com/jquery-1.8.2.min.js'></script>
+	<script src='src/com/jquery.color.js'></script>
+	<script src='src/com/cordova-2.5.0.js'></script>
+</head>
+
+<body>
+	<audio id='sfx_agua'>
+  		<source src="sound/agua.mp3" type="audio/mpeg">
+		Your browser does not support the audio element.
+	</audio>
+
+	<audio id='sfx_explosao'>
+  		<source src="sound/explosao.mp3" type="audio/mpeg">
+		Your browser does not support the audio element.
+	</audio>
+
+	<script>
+		function Game(){
+
+			var stage  			= $("<div>").attr( { "id" : "stage" } ).addClass("gradient").appendTo(document.body),
+				p1 	   			= $("<div>").addClass("content_player text").html("Jogador 1").appendTo(stage),
+				p2 	   			= $("<div>").addClass("content_player text").html("Jogador 2").appendTo(stage),
+				btnIniciar 		= $("<button>").addClass("text").html("Jogar").appendTo(stage),
+				status 			= $("<h1>").addClass("text").html("Status: ").appendTo(stage),
+				campo1			= $("<div>").attr("id", "campo1").addClass("campo_batalha").appendTo(p1),
+				campo2 			= $("<div>").attr("id", "campo2").addClass("campo_batalha").appendTo(p2),
+				mapa_p1 		= [],
+				mapa_p2 		= [],
+				currentElement 	= "",
+				turno			= 0;
+
+
+			function construirCampo( campo ){
+				var qtdQuadrados = 10,
+					wQuadrado 	= campo.width()/qtdQuadrados,
+					hQuadrado	= campo.height()/qtdQuadrados,
+					tileMap = [];
+					arr = [];
+
+				for(var i = 0; i < qtdQuadrados; i++){
+					for(var j = 0; j < qtdQuadrados; j++){
+						tile = $("<div>").addClass(campo.attr("id"))
+								.appendTo( campo )
+								.css({
+									"border": "1px solid black",
+									"width": wQuadrado - 2 + "px",
+									"height": hQuadrado - 2 + "px",
+									"float": "left"
+								})
+								.addClass( "gradient" )
+								.data( { "x": i , "y": j, "barco": false, "enable": true } );
+
+						arr.push( tile );
+					}
+					tileMap.push( arr );
+					arr = [];
+				}
+
+				// add barcos fora do campo
+				/*for(var i = 0; i < 5; i++){
+					var barco = $("<div>").css({ 
+								"width":  wQuadrado + "px", 
+								"height": hQuadrado * (i + 1) + "px", 
+								"background-color": "#111",
+								"border": "1px solid red",
+								"margin": "10px 0 0 10px",
+								"cursor": "pointer"
+							})
+							.appendTo(campo.parent())
+				}*/
+
+				return tileMap;
+			}
+
+			function onMouseEnter(){
+				$(this).addClass( "over" );
+			}
+
+			function onMouseLeave(){
+				$(this).removeClass( "over" );
+			}
+
+			/*function onMouseDown(){
+				currentElement = $(this);
+				$(this).mouseup( onMouseUp )
+
+				$(document).mouseover( trocarPosicao )
+			}
+
+			function onMouseUp(){
+				$(this).unbind( "mouseup" , onMouseUp )
+				$(document).unbind( "mouseover" , trocarPosicao )
+
+
+				console.log("TROCAR POSICAO")
+
+			}
+
+			function trocarPosicao(evt){
+				currentX = evt.clientX;
+				currentY = evt.clientY;
+				console.log( evt.clientX, evt.clientY )
+
+				$(this).insertAfter( currentElement )
+				console.log(this)
+			}*/
+
+			/**
+			  * mapa    [Array]   : mapa de array com cada tile do campo
+			  * player1 [Boolean] : jogador pode ver seus barcos, não do adversário
+			  */
+			function posicionarBarcos( mapa, player1 ){
+				var coluna, linha, orientacaoBarco, 
+					arrBarcos 	 = [], 
+					arrL 		 = [], 
+					arrC 		 = [], 
+					barco 		 = "", 
+					tile 		 = "",
+					tamanhoBarco = 0;
+
+				for(var i = 0; i < 5; i++){
+					arrL = [];
+					arrC = [];
+					tamanhoBarco = i + 1;
+					orientacaoBarco = -1;
+
+					do{	coluna = random(0, 9) } while( verificaValorColuna( coluna ) )
+					do{	linha  = random(0, 9) } while( verificaValorLinha( linha ) )
+
+					if( random( 0, 1 ) == 1 ){ 
+						// console.log("\thorizontal")
+						if( coluna <= ( 9 - tamanhoBarco ) )	
+							orientacaoBarco = 0;
+						else if( coluna >= ( 0 + tamanhoBarco ) )
+							orientacaoBarco = 1;
+					}
+					else{
+						// console.log("\tvertical")
+						if( linha <= ( 9 - tamanhoBarco ) )
+							orientacaoBarco = 2;
+						else if( linha >= ( 0 + tamanhoBarco ) )
+							orientacaoBarco = 3;
+					}
+
+					for(var j = 0; j < tamanhoBarco; j++){
+						// console.log( "barco " + i + " L: " + linha + " C: " + coluna + " Tamanho: " + tamanhoBarco )
+						arrL.push( linha );
+						arrC.push( coluna );
+						tile = $(mapa[linha][coluna]).data({ "barco": true })
+
+						if( player1 )
+							tile.css("background-color", "black")
+
+						constroiBarco( orientacaoBarco );
+					}
+					barco = {linhas: arrL, colunas: arrC};
+					arrBarcos.push( barco )
+				}
+
+				function constroiBarco( orientacao ){
+					switch( orientacao ){
+						case 0:	coluna++; break;
+						case 1:	coluna--; break;
+						case 2:	linha++;  break;
+						case 3:	linha--;  break;
+						default: console.log("ERRO nas coordenadas do barco"); break;
+					}
+				}
+
+				function verificaValorColuna( valor ){
+					for(var i = 0; i < arrBarcos.length; i++)
+						for(var j = 0; j < arrBarcos[i].colunas.length; j++)
+							if( valor == arrBarcos[i].colunas[j] )
+								return true;
+
+					return false;
+				}
+
+				function verificaValorLinha( valor ){
+					for(var i = 0; i < arrBarcos.length; i++)
+						for(var j = 0; j < arrBarcos[i].linhas.length; j++)
+							if( valor == arrBarcos[i].linhas[j] )
+								return true;
+							
+					return false;
+				}
+			}
+
+			function random( min, max ){
+				return Math.floor((Math.random() * (max - min + 1)) + min);
+			}
+
+			function jogar(){
+				turno = random( 1, 2 );
+
+				$("#sfx_agua").bind("ended", alternarVez )
+				$("#sfx_explosao").bind("ended", alternarVez )
+
+				$(".campo1").unbind( "mouseenter" ).css( "cursor", "auto" );
+				$(".campo2").mouseenter( onMouseEnter ).mouseleave( onMouseLeave ).css( "cursor", "crosshair" );
+				
+				alternarVez( turno );
+			}
+
+			function alternarVez(){
+				if( turno == 1 ){
+					alterarStatus( "Jogador da vez - Jogador 1." );
+					$(".campo2").click( atirar );
+				}
+				else{
+					alterarStatus( "Jogador da vez - Jogador 2." );
+					$(".campo2").unbind( "click", atirar );
+					computador();
+				}
+			}
+
+			function atirar(){
+				// for(var i = 0, tamanhoMapa = mapa_p2.length; i < tamanhoMapa; i++)
+					// if( $(this).data("x") == )
+				if( $(this).data("enable") && turno == 1 ){
+
+					if( $(this).data("barco") ){
+						$(this).animate({ "background-color": "red" }, "slow");
+						turno = 2;
+						// alternarVez();
+						$("#sfx_explosao")[0].play();
+					}
+					else{
+						$(this).animate({ "background-color": "blue" }, "slow");
+						turno = 2;
+						// alternarVez();
+						$("#sfx_agua")[0].play();
+					}
+
+					$(this).data( "enable", false );
+				}
+
+			}
+
+			var ultimoTiro = {
+				linha 	: -1, 
+				coluna 	: -1, 
+				acertou	: 	{	 
+								status: false, 
+								linha: -1, 
+								coluna: -1,
+								derrubou : false
+							}
+			};
+
+			function computador(){
+				var linha, coluna, contaLados = "", flag = false;
+
+				do{
+					if( ultimoTiro.acertou.status ){
+						// console.log("aqui!")
+
+						// for(var i = 0; i < ultimoTiro.cantos.vertical.length; i++){
+						// 	if( ultimoTiro.cantos.vertical[i] == 1 ){
+						// 		ultimoTiro.linha++;
+						// 		flag = true;
+						// 		break;
+						// 	}
+						// }
+
+						if ( ultimoTiro.acertou.linha < 9 ) 
+							linha =  ultimoTiro.acertou.linha + 1;
+						else if ( ultimoTiro.acertou.linha > 0 )
+							linha = ultimoTiro.acertou.linha - 1;
+						// coluna = ( ultimoTiro.coluna < 9 ) ? ultimoTiro.coluna++ : ultimoTiro.coluna--;
+						
+						coluna = ultimoTiro.coluna;
+					
+
+
+					}
+					else{
+						linha  = random( 0, mapa_p1.length - 1 );
+						coluna = random( 0, mapa_p1[0].length - 1 );
+					}
+				} while( !$(mapa_p1[linha][coluna]).data("enable") );
+
+				if( $(mapa_p1[linha][coluna]).data( "barco" ) ){
+					$("#sfx_explosao")[0].play();
+					$(mapa_p1[linha][coluna]).animate({ "background-color": "red" }, "slow");
+				}
+				else{
+					$("#sfx_agua")[0].play();
+					$(mapa_p1[linha][coluna]).animate({ "background-color": "blue" }, "slow");
+				}
+
+				// contaLados.vertical   = new Array();
+				// contaLados.horizontal = new Array();
+
+				// contaLados.vertical[0] 	 = ( linha > 0 )  ? 1 : 0;
+				// contaLados.vertical[1] 	 = ( linha < 9 )  ? 1 : 0;
+				// contaLados.horizontal[0] = ( coluna > 0 ) ? 1 : 0;
+				// contaLados.horizontal[1] = ( coluna < 9 ) ? 1 : 0;
+
+				// console.log("LADOS: " + contaLados);
+
+				ultimoTiro = { 
+					linha: linha, 
+					coluna: coluna, 
+					acertou: { 
+								status 	 : $(mapa_p1[linha][coluna]).data( "barco" ), 
+								linha 	 : linha, 
+								coluna 	 : coluna,
+								derrubou : false
+							 }
+					// lados: contaLados
+
+				};
+				$(mapa_p1[linha][coluna]).data( "enable", false );
+				turno = 1;
+				// alternarVez();
+			}
+
+			function alterarStatus( texto ){
+				status.text( "Status: " + texto );
+			}
+
+			function init(){
+				mapa_p1 = construirCampo( campo1 );
+				mapa_p2 = construirCampo( campo2 );
+
+				posicionarBarcos( mapa_p1, true );
+				posicionarBarcos( mapa_p2 );
+
+				$("#sfx_agua")[0].volume 	 = 0.1;
+				$("#sfx_explosao")[0].volume = 0.1;
+
+				$(".campo1").mouseenter( onMouseEnter ).mouseleave( onMouseLeave ).css("cursor", "pointer");
+
+				btnIniciar.click( jogar );
+				alterarStatus( "Posicionar barcos. Quando estiver pronto clique em Jogar." );
+			}
+
+			init();
+		}
+
+		$(Game)
+	</script>
+</body>
+
+</html>
